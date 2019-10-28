@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="windows-1251"?>
 <object type="TAForm" name="hGUI">
 	<properties>
-		<property name="Left" vt="Int16">248</property>
-		<property name="Top" vt="Int16">143</property>
+		<property name="Left" vt="Int16">607</property>
+		<property name="Top" vt="Int16">168</property>
 		<property name="Width" vt="Int16">745</property>
-		<property name="Height" vt="Int16">484</property>
+		<property name="Height" vt="Int16">244</property>
 		<property name="Caption" vt="String">KODA Generator Test</property>
 		<property name="Color" vt="Ident">clBtnFace</property>
 		<property name="Font.Charset" vt="Ident">ANSI_CHARSET</property>
@@ -169,7 +169,7 @@
 				<property name="Left" vt="Int8">8</property>
 				<property name="Top" vt="Int8">72</property>
 				<property name="Width" vt="Int16">169</property>
-				<property name="Height" vt="Int8">94</property>
+				<property name="Height" vt="Int8">81</property>
 				<property name="ItemHeight" vt="Int8">15</property>
 				<property name="Items.Strings" vt="List">
 					<list>
@@ -219,7 +219,7 @@
 					</list>
 				</property>
 				<property name="TabOrder" vt="Int8">8</property>
-				<property name="CtrlStyle" vt="Int32">1345523908</property>
+				<property name="CtrlStyle" vt="Int32">1344475204</property>
 				<property name="CtrlExStyle" vt="Int16">512</property>
 				<property name="Resizing" vt="Set"/>
 			</properties>
@@ -363,7 +363,7 @@
 			<components>
 				<object type="TAMenuItem" name="Menu_File">
 					<properties>
-						<property name="Caption" vt="String">File</property>
+						<property name="Caption" vt="String">&amp;File</property>
 					</properties>
 					<components>
 						<object type="TAMenuItem" name="Menu_New">
@@ -388,7 +388,7 @@
 				</object>
 				<object type="TAMenuItem" name="Menu_About">
 					<properties>
-						<property name="Caption" vt="String">About</property>
+						<property name="Caption" vt="String">&amp;About</property>
 					</properties>
 					<components/>
 				</object>

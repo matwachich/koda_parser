@@ -1,7 +1,7 @@
 #NoTrayIcon
 #include "kodaparser.au3"
 
-$oForm = _KODAParser_DoFile("testing.kxf")
+$oForm = _KODAParser_DoFile("testing.kxf", 730, 206)
 
 GUISetState(@SW_SHOW, $oForm.Item("hGUI"))
 

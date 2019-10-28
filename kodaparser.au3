@@ -9,7 +9,7 @@
 #include <DateTimeConstants.au3>
 #include <ListViewConstants.au3>
 
-Func _KODAParser_DoFile($sFileOrXML)
+Func _KODAParser_DoFile($sFileOrXML, $iWidth, $iHeight)
 	; returned object that will contain control IDs
 	Local $oForm = _objCreate()
 
@@ -26,7 +26,7 @@ Func _KODAParser_DoFile($sFileOrXML)
 	If Not $bRet Then Return SetError(1, 0, Null)
 
 	; create GUI
-	__KODAParser_createGUI($oForm, $oXML)
+	__KODAParser_createGUI($oForm, $oXML, $iWidth, $iHeight)
 	If @error Then Return SetError(1 + @error, 0, Null)
 
 	; create controls
@@ -41,7 +41,7 @@ Func _KODAParser_DoFile($sFileOrXML)
 	Return $oForm
 EndFunc
 
-Func __KODAParser_createGUI($oForm, $oXML)
+Func __KODAParser_createGUI($oForm, $oXML, $iWidth, $iHeight)
 	Local $oObject = $oXML.selectSingleNode("/object")
 	If $oObject.getAttribute("type") <> "TAForm" Then Return SetError(1, 0, Null)
 
@@ -58,9 +58,13 @@ Func __KODAParser_createGUI($oForm, $oXML)
 	; deleted in _KODAParser_DoFile befor returning
 	_objSet($oForm, "___###gui_properties###___", $oProperties)
 
+	; ajust window size (tooo headache!)
+;~ 	$oProperties.Item("Width") = $oProperties.Item("Width") - (_WinAPI_GetSystemMetrics($SM_CXSIZEFRAME) * 2)
+;~ 	$oProperties.Item("Height") = $oProperties.Item("Height") - (_WinAPI_GetSystemMetrics($SM_CYSIZEFRAME) * 2); caption, menu, status bar?
+
 	Local $hGUI = GUICreate( _
 		$oProperties.Item("Caption"), _
-		$oProperties.Item("Width"), $oProperties.Item("Height"), _
+		$iWidth, $iHeight, _ ; $oProperties.Item("Width"), $oProperties.Item("Height"), _
 		$oProperties.Item("Left"), $oProperties.Item("Top"), _
 		$oProperties.Item("Style"), $oProperties.Item("ExStyle"), _
 		Eval($oProperties.Item("ParentForm")) _ ;TODO: test
