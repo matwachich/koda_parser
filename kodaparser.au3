@@ -9,6 +9,8 @@
 #include <DateTimeConstants.au3>
 #include <ListViewConstants.au3>
 
+; -------------------------------------------------------------------------------------------------
+
 Func _KODAParser_DoFile($sFileOrXML, $iWidth, $iHeight)
 	; returned object that will contain control IDs
 	Local $oForm = _objCreate()
@@ -19,11 +21,11 @@ Func _KODAParser_DoFile($sFileOrXML, $iWidth, $iHeight)
 
 	; load XML
 	If FileExists($sFileOrXML) Then
-		$bRet = $oXML.Load($sFileOrXML)
-	Else
-		$bRet = $oXML.LoadXML($sFileOrXML)
+		Local $hF = FileOpen($sFileOrXML, 512)
+		$sFileOrXML = FileRead($hF)
+		FileClose($hF)
 	EndIf
-	If Not $bRet Then Return SetError(1, 0, Null)
+	If Not $oXML.LoadXML($sFileOrXML) Then Return SetError(1, 0, Null)
 
 	; create GUI
 	__KODAParser_createGUI($oForm, $oXML, $iWidth, $iHeight)
@@ -176,7 +178,7 @@ Func __KODAParser_createControls($oForm, $oObjects, $iXOffset = 0, $iYOffset = 0
 			Case "TAEdit"
 				$aLines = $oProperties.Item("Lines.Strings")
 				$iCtrlID = GUICtrlCreateEdit( _
-					_ArrayToString($aLines, @CRLF, 1), _
+					IsArray($aLines) ? _ArrayToString($aLines, @CRLF, 1) : "", _
 					$oProperties.Item("Left"), $oProperties.Item("Top"), $oProperties.Item("Width"), $oProperties.Item("Height"), _
 					$oProperties.Item("CtrlStyle"), $oProperties.Item("CtrlExStyle") _
 				)
