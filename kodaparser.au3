@@ -8,6 +8,7 @@
 #include <WindowsConstants.au3>
 #include <DateTimeConstants.au3>
 #include <ListViewConstants.au3>
+#include <GuiIPAddress.au3>
 
 ; -------------------------------------------------------------------------------------------------
 
@@ -72,8 +73,6 @@ Func __KODAParser_createGUI($oForm, $oXML, $iWidth, $iHeight)
 		Eval($oProperties.Item("ParentForm")) _ ;TODO: test
 	)
 
-	;TODO: move/resize GUI
-
 	; font
 	Local $aFont = __KODAParser_processFont($oForm, $oProperties)
 	GUISetFont($aFont[0], $aFont[1], $aFont[2], $aFont[3], $hGUI)
@@ -110,12 +109,10 @@ Func __KODAParser_createControls($oForm, $oObjects, $iXOffset = 0, $iYOffset = 0
 
 		Switch $oObject.getAttribute("type")
 			; ---
-;~ 			Case "TAMenu" ; main GUI menu
-			Case "TMainMenu"
-				Local $oComponents = $oObject.selectNodes("components/object")
-				__KODAParser_createControls($oForm, $oComponents, 0, 0, -1)
-				$oComponents = 0
-				ContinueLoop
+			Case "TAMenu" ; main GUI menu
+				Local $oMainMenu = $oObject.selectNodes("//object[@type='TMainMenu' and @name='" & _objGet($oProperties, "WrappedName") & "']")
+				__KODAParser_createControls($oForm, $oMainMenu, 0, 0, -1)
+				$oMainMenu = 0
 			; ---
 			Case "TAContextMenu"
 				; after sortin, we are sure that the 'Associate' control exists because menus are created the last
@@ -124,6 +121,14 @@ Func __KODAParser_createControls($oForm, $oObjects, $iXOffset = 0, $iYOffset = 0
 				Local $oPopupMenu = $oObject.selectNodes("//object[@type='TPopupMenu' and @name='" & _objGet($oProperties, "WrappedName") & "']")
 				__KODAParser_createControls($oForm, $oPopupMenu, 0, 0, $iCtrlID)
 				$oPopupMenu = 0
+			; ---
+			Case "TMainMenu"
+				If Not $vUserData Then ContinueLoop
+
+				Local $oComponents = $oObject.selectNodes("components/object")
+				__KODAParser_createControls($oForm, $oComponents, 0, 0, -1) ; (*)
+				$oComponents = 0
+				ContinueLoop
 			; ---
 			Case "TPopupMenu"
 				If Not $vUserData Then ContinueLoop
@@ -135,7 +140,7 @@ Func __KODAParser_createControls($oForm, $oObjects, $iXOffset = 0, $iYOffset = 0
 			; ---
 			Case "TAMenuItem"
 				Local $oSubMenuItems = $oObject.selectNodes("components/object")
-				If $oSubMenuItems.length > 0 Then
+				If $oSubMenuItems.length > 0 Or $vUserData = -1 Then ; $vUserData is set to -1 when creating parent main menu item (*)
 					$iCtrlID = GUICtrlCreateMenu( _
 						_objGet($oProperties, "Caption", ""), _
 						$vUserData _
@@ -348,10 +353,29 @@ Func __KODAParser_createControls($oForm, $oObjects, $iXOffset = 0, $iYOffset = 0
 				__KODAParser_createControls($oForm, $oObject.selectNodes("components/object"), $iXOffset + $aDispRect[0], $iYOffset + $aDispRect[1])
 
 				GUICtrlCreateTabItem("")
+			; ---------------
+			; Custom controls
 			; ---
 ;~ 			Case "TAStatusBar"
-;~ 			Case "TAIPAddress"
+			Case "TAIPAddress"
+				$iCtrlID = _GUICtrlIpAddress_Create( _
+					HWnd($oForm.Item("#hwnd#")), _
+					$oProperties.Item("Left"), $oProperties.Item("Top"), $oProperties.Item("Width"), $oProperties.Item("Height"), _
+					$oProperties.Item("CtrlStyle"), $oProperties.Item("CtrlExStyle") _
+				)
+
+				_GUICtrlIpAddress_Set($iCtrlID, $oProperties.Item("Text"))
+				_GUICtrlIpAddress_ShowHide($iCtrlID, _objGet($oProperties, "Visible", True) ? @SW_SHOW : @SW_HIDE)
+
+				Local $aFont = __KODAParser_processFont($oForm, $oProperties) ; get default GUI font
+				_GUICtrlIpAddress_SetFont($iCtrlID, $aFont[3], $aFont[0], $aFont[1], BitAND($aFont[2], 2) = 2)
+
+				; code repetition
+				If String($oObject.getAttribute("name")) Then _objSet($oForm, $oObject.getAttribute("name"), $iCtrlID)
+				ContinueLoop
+			; ---
 ;~ 			Case "TAToolBar"
+;~ 			Case "TAImageList"
 			Case Else
 				ContinueLoop
 		EndSwitch
@@ -458,11 +482,17 @@ Func __KODAParser_readProperty($oProperty)
 			Return $aRet
 		; ---
 		Case "List" ; list of strings (only?)
+			Local $oItems = $oProperty.selectNodes("list/li")
 			Local $aRet[1] = [0]
-			For $oLi In $oProperty.selectNodes("list/li") ;TODO: possible bad performance for (very) big lists
-				_ArrayAdd($aRet, __KODAParser_readProperty($oLi))
-				$aRet[0] += 1
-			Next
+			If $oItems.length > 0 Then
+				ReDim $aRet[$oItems.length + 1]
+				$aRet[0] = $oItems.length
+				$i = 1
+				For $oItem In $oItems
+					$aRet[$i] = __KODAParser_readProperty($oItem)
+					$i += 1
+				Next
+			EndIf
 			Return $aRet
 		; ---
 		Case "Set" ; list of Identifiers
