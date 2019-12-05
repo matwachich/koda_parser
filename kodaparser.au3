@@ -12,7 +12,7 @@
 
 ; -------------------------------------------------------------------------------------------------
 
-Func _KODAParser_DoFile($sFileOrXML, $iWidth, $iHeight)
+Func _KODAParser_Do($sFileOrXML, $iWidth, $iHeight, $hParent = Null)
 	; returned object that will contain control IDs
 	Local $oForm = _objCreate()
 
@@ -29,7 +29,7 @@ Func _KODAParser_DoFile($sFileOrXML, $iWidth, $iHeight)
 	If Not $oXML.LoadXML($sFileOrXML) Then Return SetError(1, 0, Null)
 
 	; create GUI
-	__KODAParser_createGUI($oForm, $oXML, $iWidth, $iHeight)
+	__KODAParser_createGUI($oForm, $oXML, $iWidth, $iHeight, $hParent)
 	If @error Then Return SetError(1 + @error, 0, Null)
 
 	; create controls
@@ -37,14 +37,46 @@ Func _KODAParser_DoFile($sFileOrXML, $iWidth, $iHeight)
 	__KODAParser_createControls($oForm, $oControls)
 
 	; clean and return
-	_objDel($oForm, "___###gui_properties###___")
+	_objDel($oForm, "#gui_properties#")
 	$oControls = 0
 	$oXML = 0
 
 	Return $oForm
 EndFunc
 
-Func __KODAParser_createGUI($oForm, $oXML, $iWidth, $iHeight)
+Func _KODAForm_SetAccels($oForm, $aAccels)
+	For $i = 0 To UBound($aAccels) - 1
+		$aAccels[$i][1] = _KODAForm_CtrlID($oForm, $aAccels[$i][1])
+	Next
+	Return GUISetAccelerators($aAccels, _KODAForm_HWnd($oForm))
+EndFunc
+
+Func _KODAForm_HWnd($oForm)
+	If Not IsObj($oForm) Then Return Null
+	Return HWnd($oForm.Item("#hwnd#"))
+EndFunc
+
+Func _KODAForm_CtrlID($oForm, $sCtrlName)
+	Local $iCtrlID = Int(_objGet($oForm, $sCtrlName, -1))
+	If $iCtrlID == -1 Then ConsoleWrite("!!! Accessing invalid Ctrl: " & $sCtrlName & @CRLF)
+	Return $iCtrlID
+EndFunc
+
+Func _KODAForm_HCtrl($oForm, $sCtrlName)
+	Return GUICtrlGetHandle(_KODAForm_CtrlID($oForm, $sCtrlName))
+EndFunc
+
+Func _KODAForm_GetItem($oForm, $sItemName, $vDefaultValue = Null)
+	Return _objGet($oForm, $sItemName, $vDefaultValue)
+EndFunc
+
+Func _KODAForm_SetItem($oForm, $sItemName, $vValue)
+	_objSet($oForm, $sItemName, $vValue)
+EndFunc
+
+; -------------------------------------------------------------------------------------------------
+
+Func __KODAParser_createGUI($oForm, $oXML, $iWidth, $iHeight, $hParent = Null)
 	Local $oObject = $oXML.selectSingleNode("/object")
 	If $oObject.getAttribute("type") <> "TAForm" Then Return SetError(1, 0, Null)
 
@@ -54,12 +86,12 @@ Func __KODAParser_createGUI($oForm, $oXML, $iWidth, $iHeight)
 		Case "poDesktopCenter"
 			$oProperties.Item("Left") = -1
 			$oProperties.Item("Top") = -1
-		;TODO: $poFixed?
+		;TODO: $poFixed ???
 	EndSwitch
 
 	; temporary store GUI properties object (could be used by control creation)
-	; deleted in _KODAParser_DoFile befor returning
-	_objSet($oForm, "___###gui_properties###___", $oProperties)
+	; deleted in _KODAParser_Do befor returning
+	_objSet($oForm, "#gui_properties#", $oProperties)
 
 	; ajust window size (tooo headache!)
 ;~ 	$oProperties.Item("Width") = $oProperties.Item("Width") - (_WinAPI_GetSystemMetrics($SM_CXSIZEFRAME) * 2)
@@ -70,7 +102,7 @@ Func __KODAParser_createGUI($oForm, $oXML, $iWidth, $iHeight)
 		$iWidth, $iHeight, _ ; $oProperties.Item("Width"), $oProperties.Item("Height"), _
 		$oProperties.Item("Left"), $oProperties.Item("Top"), _
 		$oProperties.Item("Style"), $oProperties.Item("ExStyle"), _
-		Eval($oProperties.Item("ParentForm")) _ ;TODO: test
+		$hParent _ ; Eval($oProperties.Item("ParentForm")) _ ;TODO: test
 	)
 
 	; font
@@ -347,7 +379,7 @@ Func __KODAParser_createControls($oForm, $oObjects, $iXOffset = 0, $iYOffset = 0
 				GUICtrlSetState(_objGet($oForm, _objGet($oProperties, "ActivePage", ""), 0), $GUI_SHOW)
 			; ---
 			Case "TTabSheet"
-				GUICtrlCreateTabItem($oProperties.Item("Caption"))
+				$iCtrlID = GUICtrlCreateTabItem($oProperties.Item("Caption"))
 
 				$aDispRect = _GUICtrlTab_GetDisplayRect(GUICtrlGetHandle($vUserData))
 				__KODAParser_createControls($oForm, $oObject.selectNodes("components/object"), $iXOffset + $aDispRect[0], $iYOffset + $aDispRect[1])
@@ -410,7 +442,7 @@ Func __KODAParser_createControls($oForm, $oObjects, $iXOffset = 0, $iYOffset = 0
 		Local $aResizing = $oProperties.Item("Resizing")
 		If IsArray($aResizing) And $aResizing[0] > 0 Then
 			Local $iResizing = 0
-			For $i = 1 To $aResizing
+			For $i = 1 To $aResizing[0]
 				$iResizing += __KODAParser_identifiers_docking($aResizing[$i])
 			Next
 			GUICtrlSetResizing($iCtrlID, $iResizing)
@@ -527,7 +559,7 @@ Func __KODAParser_processFont($oForm, $oProperties)
 	Local $aRet[4] ; size, weight, attributes, name
 
 	; GUI props are used for PixelsPerInch, and to default to GUI font if no font info are provided for the control
-	Local $oGUIProps = _objGet($oForm, "___###gui_properties###___")
+	Local $oGUIProps = _objGet($oForm, "#gui_properties#")
 
 	; calculate font point size (https://support.microsoft.com/en-us/help/74299/info-calculating-the-logical-height-and-point-size-of-a-font)
 	$aRet[0] = Round(Abs(_objGet($oProperties, "Font.Height", _objGet($oGUIProps, "Font.Height")) * 72 / _objGet($oGUIProps, "PixelsPerInch")))
@@ -567,9 +599,9 @@ Func __KODAParser_identifiers_docking($sIdent)
 		["DockAuto", 1], _
 		["DockLeft", 2], _
 		["DockRight", 4], _
+		["DockHCenter", 8], _
 		["DockTop", 32], _
 		["DockBottom", 64], _
-		["DockHCenter", 8], _
 		["DockVCenter", 128], _
 		["DockWidth", 256], _
 		["DockHeight", 512] _
