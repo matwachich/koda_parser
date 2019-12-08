@@ -41,6 +41,9 @@ Func _KODAParser_Do($sFileOrXML, $iWidth, $iHeight, $hParent = Null)
 	$oControls = 0
 	$oXML = 0
 
+	; activate
+	GUISetState(@SW_ENABLE, $oForm.Item("#hwnd#"))
+
 	Return $oForm
 EndFunc
 
@@ -97,6 +100,14 @@ Func __KODAParser_createGUI($oForm, $oXML, $iWidth, $iHeight, $hParent = Null)
 ;~ 	$oProperties.Item("Width") = $oProperties.Item("Width") - (_WinAPI_GetSystemMetrics($SM_CXSIZEFRAME) * 2)
 ;~ 	$oProperties.Item("Height") = $oProperties.Item("Height") - (_WinAPI_GetSystemMetrics($SM_CYSIZEFRAME) * 2); caption, menu, status bar?
 
+	; window visibility control
+	If _objGet($oProperties, "Visible", False) Then
+		If BitAND($oProperties.Item("Style"), $WS_VISIBLE) <> $WS_VISIBLE Then $oProperties.Item("Style") += $WS_VISIBLE
+	Else
+		If BitAND($oProperties.Item("Style"), $WS_VISIBLE) = $WS_VISIBLE Then $oProperties.Item("Style") -= $WS_VISIBLE
+	EndIf
+
+	; GUI creation
 	Local $hGUI = GUICreate( _
 		$oProperties.Item("Caption"), _
 		$iWidth, $iHeight, _ ; $oProperties.Item("Width"), $oProperties.Item("Height"), _
@@ -104,6 +115,9 @@ Func __KODAParser_createGUI($oForm, $oXML, $iWidth, $iHeight, $hParent = Null)
 		$oProperties.Item("Style"), $oProperties.Item("ExStyle"), _
 		$hParent _ ; Eval($oProperties.Item("ParentForm")) _ ;TODO: test
 	)
+
+	; deactivate
+	GUISetState(@SW_DISABLE, $hGUI)
 
 	; font
 	Local $aFont = __KODAParser_processFont($oForm, $oProperties)
