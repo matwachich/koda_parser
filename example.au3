@@ -1,9 +1,16 @@
 #NoTrayIcon
+#include <Array.au3>
 #include "kodaparser.au3"
 
-$oForm = _KODAParser_Do("testing.kxf", 330, 154)
+$oForm = _KODAParser_Do("testing.kxf", 330, 194)
 
 GUISetState(@SW_SHOW, _KODAForm_HWnd($oForm))
+
+$aGroupCtrls = _KODAForm_CtrlChildrenNames($oForm, "ControlGroup1")
+_ArrayDisplay($aGroupCtrls, "Group control names")
+
+$aGroupCtrls = _KODAForm_CtrlChildrenIDs($oForm, "ControlGroup1")
+_ArrayDisplay($aGroupCtrls, "Group control IDs")
 
 While 1
 	Switch GUIGetMsg()

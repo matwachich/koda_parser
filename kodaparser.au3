@@ -37,10 +37,10 @@ Func _KODAParser_Do($sFileOrXML, $iWidth, $iHeight, $hParent = Null)
 	__KODAParser_createControls($oForm, $oControls)
 
 	; set visible
-	If _objGet(_objGet($oForm, "#gui_properties#"), "Visible", False) Then GUISetState(@SW_SHOW, _objGet($oForm, "#hwnd#"))
+	If _objGet(_objGet($oForm, "__#internal_gui_properties"), "Visible", False) Then GUISetState(@SW_SHOW, _objGet($oForm, "__#internal_hwnd"))
 
 	; clean and return
-	_objDel($oForm, "#gui_properties#")
+	_objDel($oForm, "__#internal_gui_properties")
 	$oControls = 0
 	$oXML = 0
 
@@ -56,7 +56,7 @@ EndFunc
 
 Func _KODAForm_HWnd($oForm)
 	If Not IsObj($oForm) Then Return Null
-	Return HWnd($oForm.Item("#hwnd#"))
+	Return HWnd($oForm.Item("__#internal_hwnd"))
 EndFunc
 
 Func _KODAForm_CtrlID($oForm, $sCtrlName)
@@ -69,12 +69,36 @@ Func _KODAForm_HCtrl($oForm, $sCtrlName)
 	Return GUICtrlGetHandle(_KODAForm_CtrlID($oForm, $sCtrlName))
 EndFunc
 
-Func _KODAForm_GetItem($oForm, $sItemName, $vDefaultValue = Null)
-	Return _objGet($oForm, $sItemName, $vDefaultValue)
+Func _KODAForm_CtrlChildrenNames($oForm, $sCtrlName)
+	Local $aChildrenNames = _objGet($oForm, $sCtrlName & "__#children", Null)
+	If Not IsArray($aChildrenNames) Then Return Null
+	Return $aChildrenNames
+EndFunc
+Func _KODAForm_CtrlChildrenIDs($oForm, $sCtrlName)
+	Local $aChildrenNames = _objGet($oForm, $sCtrlName & "__#children", Null)
+	If Not IsArray($aChildrenNames) Then Return Null
+
+	For $i = 0 To UBound($aChildrenNames) - 1
+		$aChildrenNames[$i] = _KODAForm_CtrlID($oForm, $aChildrenNames[$i])
+	Next
+	Return $aChildrenNames
+EndFunc
+Func _KODAForm_CtrlChildrenHandles($oForm, $sCtrlName)
+	Local $aChildrenNames = _objGet($oForm, $sCtrlName & "__#children", Null)
+	If Not IsArray($aChildrenNames) Then Return Null
+
+	For $i = 0 To UBound($aChildrenNames) - 1
+		$aChildrenNames[$i] = _KODAForm_HCtrl($oForm, $aChildrenNames[$i])
+	Next
+	Return $aChildrenNames
 EndFunc
 
-Func _KODAForm_SetItem($oForm, $sItemName, $vValue)
-	_objSet($oForm, $sItemName, $vValue)
+Func _KODAForm_GetUserData($oForm, $sItemName, $vDefaultValue = Null)
+	Return _objGet($oForm, "__#useritem_" & $sItemName, $vDefaultValue)
+EndFunc
+
+Func _KODAForm_SetUserData($oForm, $sItemName, $vValue)
+	_objSet($oForm, "__#useritem_" & $sItemName, $vValue)
 EndFunc
 
 ; -------------------------------------------------------------------------------------------------
@@ -94,7 +118,7 @@ Func __KODAParser_createGUI($oForm, $oXML, $iWidth, $iHeight, $hParent = Null)
 
 	; temporary store GUI properties object (could be used by control creation)
 	; deleted in _KODAParser_Do befor returning
-	_objSet($oForm, "#gui_properties#", $oProperties)
+	_objSet($oForm, "__#internal_gui_properties", $oProperties)
 
 	; ajust window size (tooo headache!)
 ;~ 	$oProperties.Item("Width") = $oProperties.Item("Width") - (_WinAPI_GetSystemMetrics($SM_CXSIZEFRAME) * 2)
@@ -124,7 +148,7 @@ Func __KODAParser_createGUI($oForm, $oXML, $iWidth, $iHeight, $hParent = Null)
 	GUISetCursor(__KODAParser_identifiers_cursor($oProperties.Item("Cursor")), 0, $hGUI)
 
 	; store GUI handle
-	_objSet($oForm, "#hwnd#", $hGUI)
+	_objSet($oForm, "__#internal_hwnd", $hGUI)
 	_objSet($oForm, $oObject.getAttribute("name"), $hGUI)
 
 	; clean memory (really useful?)
@@ -134,6 +158,8 @@ EndFunc
 
 Func __KODAParser_createControls($oForm, $oObjects, $iXOffset = 0, $iYOffset = 0, $vUserData = Null)
 	Local $iCtrlID, $oObject, $oProperties
+
+	Local $aRetNames[0]
 
 	; we first sort the objects/controls to create in order to respect TabOrder
 	; also, this function will make sure that any PopupMenu declaration comes after it's parent control
@@ -276,9 +302,11 @@ Func __KODAParser_createControls($oForm, $oObjects, $iXOffset = 0, $iYOffset = 0
 				)
 
 				Local $oComponents = $oObject.selectNodes("components/object")
-				__KODAParser_createControls($oForm, $oComponents, $oProperties.Item("Left"), $oProperties.Item("Top"))
-				$oComponents = 0
 
+				Local $aRet = __KODAParser_createControls($oForm, $oComponents, $oProperties.Item("Left"), $oProperties.Item("Top"))
+				If $oObject.getAttribute("name") Then _objSet($oForm, $oObject.getAttribute("name") & "__#children", $aRet)
+
+				$oComponents = 0
 				GUICtrlCreateGroup("", -99, -99, 1, 1)
 			; ---
 			Case "TAPic"
@@ -301,7 +329,10 @@ Func __KODAParser_createControls($oForm, $oObjects, $iXOffset = 0, $iYOffset = 0
 			Case "TAControlGroup"
 				GUIStartGroup()
 				Local $oComponents = $oObject.selectNodes("components/object")
-				__KODAParser_createControls($oForm, $oComponents, $oProperties.Item("Left"), $oProperties.Item("Top"))
+
+				Local $aRet = __KODAParser_createControls($oForm, $oComponents, $oProperties.Item("Left"), $oProperties.Item("Top"))
+				If $oObject.getAttribute("name") Then _objSet($oForm, $oObject.getAttribute("name") & "__#children", $aRet)
+
 				$oComponents = 0
 				GUIStartGroup()
 			; ---
@@ -381,7 +412,8 @@ Func __KODAParser_createControls($oForm, $oObjects, $iXOffset = 0, $iYOffset = 0
 					$oProperties.Item("Left"), $oProperties.Item("Top"), $oProperties.Item("Width"), $oProperties.Item("Height"), _
 					$oProperties.Item("CtrlStyle"), $oProperties.Item("CtrlExStyle") _
 				)
-				__KODAParser_createControls($oForm, $oObject.selectNodes("components/object"), $oProperties.Item("Left"), $oProperties.Item("Top"), $iCtrlID)
+				Local $aRet = __KODAParser_createControls($oForm, $oObject.selectNodes("components/object"), $oProperties.Item("Left"), $oProperties.Item("Top"), $iCtrlID)
+				If $oObject.getAttribute("name") Then _objSet($oForm, $oObject.getAttribute("name") & "__#children", $aRet)
 
 				GUICtrlSetState(_objGet($oForm, _objGet($oProperties, "ActivePage", ""), 0), $GUI_SHOW)
 			; ---
@@ -389,7 +421,8 @@ Func __KODAParser_createControls($oForm, $oObjects, $iXOffset = 0, $iYOffset = 0
 				$iCtrlID = GUICtrlCreateTabItem($oProperties.Item("Caption"))
 
 				$aDispRect = _GUICtrlTab_GetDisplayRect(GUICtrlGetHandle($vUserData))
-				__KODAParser_createControls($oForm, $oObject.selectNodes("components/object"), $iXOffset + $aDispRect[0], $iYOffset + $aDispRect[1])
+				Local $aRet = __KODAParser_createControls($oForm, $oObject.selectNodes("components/object"), $iXOffset + $aDispRect[0], $iYOffset + $aDispRect[1])
+				If $oObject.getAttribute("name") Then _objSet($oForm, $oObject.getAttribute("name") & "__#children", $aRet)
 
 				GUICtrlCreateTabItem("")
 			; ---------------
@@ -398,7 +431,7 @@ Func __KODAParser_createControls($oForm, $oObjects, $iXOffset = 0, $iYOffset = 0
 ;~ 			Case "TAStatusBar"
 			Case "TAIPAddress"
 				$iCtrlID = _GUICtrlIpAddress_Create( _
-					HWnd($oForm.Item("#hwnd#")), _
+					HWnd($oForm.Item("__#internal_hwnd")), _
 					$oProperties.Item("Left"), $oProperties.Item("Top"), $oProperties.Item("Width"), $oProperties.Item("Height"), _
 					$oProperties.Item("CtrlStyle"), $oProperties.Item("CtrlExStyle") _
 				)
@@ -457,11 +490,16 @@ Func __KODAParser_createControls($oForm, $oObjects, $iXOffset = 0, $iYOffset = 0
 
 		; ---
 		; store control in returned object (if non empty name)
-		If String($oObject.getAttribute("name")) Then _objSet($oForm, $oObject.getAttribute("name"), $iCtrlID)
+		If String($oObject.getAttribute("name")) Then
+			_objSet($oForm, $oObject.getAttribute("name"), $iCtrlID)
+			_ArrayAdd($aRetNames, $oObject.getAttribute("name"))
+		EndIf
 
 		$oObject = 0
 		$oProperties = 0
 	Next
+
+	Return $aRetNames
 EndFunc
 
 Func __KODAParser_sortObjects($oObjects)
@@ -566,7 +604,7 @@ Func __KODAParser_processFont($oForm, $oProperties)
 	Local $aRet[4] ; size, weight, attributes, name
 
 	; GUI props are used for PixelsPerInch, and to default to GUI font if no font info are provided for the control
-	Local $oGUIProps = _objGet($oForm, "#gui_properties#")
+	Local $oGUIProps = _objGet($oForm, "__#internal_gui_properties")
 
 	; calculate font point size (https://support.microsoft.com/en-us/help/74299/info-calculating-the-logical-height-and-point-size-of-a-font)
 	$aRet[0] = Round(Abs(_objGet($oProperties, "Font.Height", _objGet($oGUIProps, "Font.Height")) * 72 / _objGet($oGUIProps, "PixelsPerInch")))
