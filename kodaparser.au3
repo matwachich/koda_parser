@@ -58,15 +58,33 @@ Func _KODAForm_HWnd($oForm)
 	If Not IsObj($oForm) Then Return Null
 	Return HWnd($oForm.Item("__#internal_hwnd"))
 EndFunc
+Func _KODAForm_FormName($oForm)
+	If Not IsObj($oForm) Then Return ""
+	Return $oForm.Item("__#internal_form_name")
+EndFunc
 
 Func _KODAForm_CtrlID($oForm, $sCtrlName)
 	Local $iCtrlID = Int(_objGet($oForm, $sCtrlName, -1))
 	If $iCtrlID == -1 Then ConsoleWrite("!!! Accessing invalid Ctrl: " & $sCtrlName & @CRLF)
 	Return $iCtrlID
 EndFunc
+Func _KODAForm_CtrlNameFromID($oForm, $iCtrlID)
+	If Not IsObj($oForm) Then Return ""
+	For $sKey In $oForm.Keys()
+		If $oForm.Item($sKey) = $iCtrlID Then Return $sKey
+	Next
+	Return ""
+EndFunc
 
 Func _KODAForm_HCtrl($oForm, $sCtrlName)
 	Return GUICtrlGetHandle(_KODAForm_CtrlID($oForm, $sCtrlName))
+EndFunc
+Func _KODAForm_CtrlNameFromHandle($oForm, $hCtrl)
+	If Not IsObj($oForm) Then Return ""
+	For $sKey In $oForm.Keys()
+		If GUICtrlGetHandle($oForm.Item($sKey)) = $hCtrl Then Return $sKey
+	Next
+	Return ""
 EndFunc
 
 Func _KODAForm_CtrlChildrenNames($oForm, $sCtrlName)
@@ -148,6 +166,7 @@ Func __KODAParser_createGUI($oForm, $oXML, $iWidth, $iHeight, $hParent = Null)
 	GUISetCursor(__KODAParser_identifiers_cursor($oProperties.Item("Cursor")), 0, $hGUI)
 
 	; store GUI handle
+	_objSet($oForm, "__#internal_form_name", $oObject.getAttribute("name"))
 	_objSet($oForm, "__#internal_hwnd", $hGUI)
 	_objSet($oForm, $oObject.getAttribute("name"), $hGUI)
 
